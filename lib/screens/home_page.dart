@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class Expense {
+
   final double amount;
   final String category;
   final String description;
@@ -30,7 +31,7 @@ class _HomePageState extends State<HomePage> {
   void _showAddExpenseForm() {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
-    String selectedCategory = "Food";
+    String selectedCategory = "Comida";
     DateTime selectedDate = DateTime.now();
 
     showModalBottomSheet(
@@ -51,7 +52,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   TextField(
                     controller: amountController,
-                    decoration: InputDecoration(labelText: "Amount (\$)"),
+                    decoration: InputDecoration(labelText: "Cantidad (\$)"),
                     keyboardType: TextInputType.number,
                   ),
                   SizedBox(height: 10),
@@ -73,14 +74,14 @@ class _HomePageState extends State<HomePage> {
                             });
                           }
                         },
-                        child: Text("Select Date"),
+                        child: Text("Seleccionar fecha"),
                       ),
                     ],
                   ),
                   SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: selectedCategory,
-                    items: ["Food", "Transport", "Entertainment"]
+                    items: ["Comida", "Transporte", "Entretenimento", "Facturas"]
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
                     onChanged: (value) {
@@ -88,12 +89,12 @@ class _HomePageState extends State<HomePage> {
                         selectedCategory = value!;
                       });
                     },
-                    decoration: InputDecoration(labelText: "Category"),
+                    decoration: InputDecoration(labelText: "Categoría"),
                   ),
                   SizedBox(height: 10),
                   TextField(
                     controller: descriptionController,
-                    decoration: InputDecoration(labelText: "Description"),
+                    decoration: InputDecoration(labelText: "Descripción"),
                   ),
                   SizedBox(height: 20),
                   ElevatedButton(
@@ -110,7 +111,7 @@ class _HomePageState extends State<HomePage> {
                         Navigator.pop(context);
                       }
                     },
-                    child: Text("Save"),
+                    child: Text("Guardar"),
                   ),
                   SizedBox(height: 20),
                 ],
@@ -133,7 +134,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Expense Tracker")),
+      appBar: AppBar(title: Text("Rastreador de gastos")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -144,7 +145,7 @@ class _HomePageState extends State<HomePage> {
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Text(
-                  "This Month: \$${totalThisMonth.toStringAsFixed(2)}",
+                  "Este mes: \$${totalThisMonth.toStringAsFixed(2)}",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
@@ -153,7 +154,7 @@ class _HomePageState extends State<HomePage> {
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: _showAddExpenseForm,
-              child: Text("+ Add Expense"),
+              child: Text("+ Agregar gasto"),
             ),
             SizedBox(height: 20),
             Expanded(
@@ -161,7 +162,7 @@ class _HomePageState extends State<HomePage> {
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: categoryTotals.isEmpty
-                      ? Center(child: Text("No expenses yet"))
+                      ? Center(child: Text("Sin gastos todavía"))
                       : BarChart(
                           BarChartData(
                             alignment: BarChartAlignment.spaceAround,

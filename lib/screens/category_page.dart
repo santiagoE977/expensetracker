@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class CategoryPage extends StatelessWidget {
-  final List<String> categories = ["Food", "Transport", "Entertainment", "Bills"];
+  final List<String> categories = ["Comida", "Transporte", "Entretenimento", "Facturas"];
 
   @override
   Widget build(BuildContext context) {

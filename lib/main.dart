@@ -12,7 +12,7 @@ class ExpenseTrackerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Expense Tracker',
+      title: 'Rastreador de gastos',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -59,15 +59,15 @@ class _MainPageState extends State<MainPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.category),
-            label: "Categories",
+            label: "Categorías",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
-            label: "Reports",
+            label: "Informes",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
-            label: "Settings",
+            label: "Ajustes",
           ),
         ],
       ),

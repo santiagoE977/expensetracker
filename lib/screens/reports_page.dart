@@ -4,10 +4,10 @@ class ReportsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Reports")),
+      appBar: AppBar(title: Text("Informes")),
       body: Center(
         child: Text(
-          "Reports (Pie chart and list will go here)",
+          "Informes (el gráfico circular y la lista irán aquí)",
           style: TextStyle(fontSize: 18),
         ),
       ),
