@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
-import 'screens/add_expense_page.dart';
+import 'screens/Category_page.dart';
 import 'screens/reports_page.dart';
-import 'screens/setting_page.dart';
+import 'screens/Setting_page.dart';
 
 void main() {
   runApp(ExpenseTrackerApp());
@@ -13,8 +13,9 @@ class ExpenseTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Expense Tracker',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 243, 33, 33)),
+        primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
       home: MainPage(),
@@ -43,16 +44,31 @@ class _MainPageState extends State<MainPage> {
       body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.category), label: 'Category'),
-          BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'Reports'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'settings'),
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "Home",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.category),
+            label: "Categories",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: "Reports",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: "Settings",
+          ),
         ],
       ),
     );

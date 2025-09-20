@@ -5,7 +5,12 @@ class ReportsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Reports")),
-      body: Center(child: Text("Charts here")),
+      body: Center(
+        child: Text(
+          "Reports (Pie chart and list will go here)",
+          style: TextStyle(fontSize: 18),
+        ),
+      ),
     );
   }
 }
