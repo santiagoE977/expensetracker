@@ -1,20 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/services.dart';
+import '../models/expense.dart';
 
-class Expense {
-
-  final double amount;
-  final String category;
-  final String description;
-  final DateTime date;
-
-  Expense({
-    required this.amount,
-    required this.category,
-    required this.description,
-    required this.date,
-  });
-}
 
 class HomePage extends StatefulWidget {
   @override
@@ -54,6 +42,7 @@ class _HomePageState extends State<HomePage> {
                     controller: amountController,
                     decoration: InputDecoration(labelText: "Cantidad (\$)"),
                     keyboardType: TextInputType.number,
+                    inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
                   ),
                   SizedBox(height: 10),
                   Row(
