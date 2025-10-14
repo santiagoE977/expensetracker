@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/services.dart';
-import '../models/expense.dart';
-
+import '../models/expense.dart'; // Modelo que tiene id, titulo, categoria, monto, fecha, descripcion
+import '../services/api_service.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -13,12 +12,14 @@ class _HomePageState extends State<HomePage> {
   final List<Expense> _expenses = [];
 
   double get totalThisMonth {
-    return _expenses.fold(0, (sum, item) => sum + item.amount);
+    return _expenses.fold(0, (sum, item) => sum + item.monto);
   }
 
+  // --- Mostrar formulario para agregar gasto ---
   void _showAddExpenseForm() {
-    final amountController = TextEditingController();
-    final descriptionController = TextEditingController();
+    final montoController = TextEditingController();
+    final tituloController = TextEditingController();
+    final descripcionController = TextEditingController();
     String selectedCategory = "Comida";
     DateTime selectedDate = DateTime.now();
 
@@ -39,10 +40,14 @@ class _HomePageState extends State<HomePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
-                    controller: amountController,
+                    controller: tituloController,
+                    decoration: InputDecoration(labelText: "Título"),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: montoController,
                     decoration: InputDecoration(labelText: "Cantidad (\$)"),
                     keyboardType: TextInputType.number,
-                    inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
                   ),
                   SizedBox(height: 10),
                   Row(
@@ -70,7 +75,7 @@ class _HomePageState extends State<HomePage> {
                   SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: selectedCategory,
-                    items: ["Comida", "Transporte", "Entretenimento", "Facturas"]
+                    items: ["Comida", "Transporte", "Entretenimiento", "Facturas", "Otros"]
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
                     onChanged: (value) {
@@ -82,22 +87,50 @@ class _HomePageState extends State<HomePage> {
                   ),
                   SizedBox(height: 10),
                   TextField(
-                    controller: descriptionController,
+                    controller: descripcionController,
                     decoration: InputDecoration(labelText: "Descripción"),
                   ),
                   SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: () {
-                      if (amountController.text.isNotEmpty) {
+                    onPressed: () async {
+                      if (tituloController.text.isEmpty || montoController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Ingrese título y monto')),
+                        );
+                        return;
+                      }
+
+                      // Crear objeto Expense para enviar al backend
+                      final nuevoGasto = Expense(
+                        id: 0, // el backend asigna el id
+                        titulo: tituloController.text,
+                        categoria: selectedCategory,
+                        monto: double.tryParse(montoController.text) ?? 0,
+                        fecha: selectedDate.toIso8601String().split('T').first,
+                        descripcion: descripcionController.text,
+                      );
+
+                      try {
+                        // Debug: mostrar JSON que se enviará
+                        print('JSON que se enviará: ${nuevoGasto.toJson()}');
+
+                        // Enviar al backend
+                        await ApiService.addExpense(nuevoGasto);
+
+                        // Agregar a la lista local para actualizar UI
                         setState(() {
-                          _expenses.add(Expense(
-                            amount: double.tryParse(amountController.text) ?? 0,
-                            category: selectedCategory,
-                            description: descriptionController.text,
-                            date: selectedDate,
-                          ));
+                          _expenses.add(nuevoGasto);
                         });
+
                         Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Gasto agregado con éxito')),
+                        );
+                      } catch (e) {
+                        print('Error al guardar gasto: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error al guardar gasto: $e')),
+                        );
                       }
                     },
                     child: Text("Guardar"),
@@ -112,10 +145,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // --- Sumar totales por categoría ---
   Map<String, double> get categoryTotals {
     Map<String, double> data = {};
     for (var exp in _expenses) {
-      data[exp.category] = (data[exp.category] ?? 0) + exp.amount;
+      data[exp.categoria] = (data[exp.categoria] ?? 0) + exp.monto;
     }
     return data;
   }
