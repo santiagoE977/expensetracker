@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../services/api_service.dart'; // Importa las funciones que conectan con la API
 
 class CategoryPage extends StatefulWidget {
   @override
@@ -42,7 +42,9 @@ class _CategoryPageState extends State<CategoryPage> {
     }
   }
 
+  // 🔹 Carga los gastos de una categoría (solo si no se han cargado antes)
   Future<void> _loadExpenses(String category) async {
+    if (expensesByCategory.containsKey(category)) return;
     try {
       final expenses = await ApiService().getExpenses(category: category);
       setState(() {
@@ -50,6 +52,120 @@ class _CategoryPageState extends State<CategoryPage> {
       });
     } catch (e) {
       print('Error al cargar gastos de $category: $e');
+    }
+  }
+
+  // 🔹 Actualizar gasto
+Future<void> _updateExpense(Map<String, dynamic> expense) async {
+  final TextEditingController titleController =
+      TextEditingController(text: expense['titulo']);
+  final TextEditingController amountController =
+      TextEditingController(text: expense['monto'].toString());
+  final TextEditingController descriptionController =
+      TextEditingController(text: expense['descripcion'] ?? '');
+
+  await showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text("Actualizar gasto"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: "Título"),
+            ),
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(labelText: "Monto"),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: descriptionController,
+              decoration: const InputDecoration(labelText: "Descripción"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final updatedData = {
+                "titulo": titleController.text,
+                "monto": double.tryParse(amountController.text) ?? 0.0,
+                "descripcion": descriptionController.text,
+              };
+
+              try {
+                // 🔹 Actualiza el gasto en el backend
+                await ApiService.updateExpense(expense['id'], updatedData);
+
+                // 🔹 Recarga los gastos de la categoría actual
+                final category = expense['categoria'];
+                expensesByCategory.remove(category); // Limpia los datos viejos
+                await _loadExpenses(category); // Vuelve a consultar la API
+
+                Navigator.pop(context); // Cierra el diálogo
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Gasto actualizado correctamente')),
+                );
+
+                // 🔹 Actualiza la interfaz
+                setState(() {});
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error al actualizar: $e')),
+                );
+              }
+            },
+            child: const Text("Guardar"),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+  // 🔹 Eliminar gasto
+  Future<void> _deleteExpense(Map<String, dynamic> expense) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Eliminar gasto"),
+          content: const Text("¿Seguro que deseas eliminar este gasto?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text("Eliminar"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      await ApiService.deleteExpense(expense['id']);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gasto eliminado con éxito')),
+      );
+
+      // Volver a cargar la lista de gastos de la categoría
+      final category = expense['categoria'];
+      expensesByCategory.remove(category);
+      await _loadExpenses(category);
+      setState(() {});
     }
   }
 
@@ -84,6 +200,9 @@ class _CategoryPageState extends State<CategoryPage> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: ExpansionTile(
+                          onExpansionChanged: (expanded) {
+                            if (expanded) _loadExpenses(category);
+                          },
                           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           leading: Container(
                             width: 40,
@@ -102,21 +221,14 @@ class _CategoryPageState extends State<CategoryPage> {
                               color: Colors.grey[900],
                             ),
                           ),
-                          
                           children: expenses.isEmpty
                               ? [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    child: TextButton.icon(
-                                      onPressed: () => _loadExpenses(category),
-                                      icon: const Icon(Icons.refresh, size: 18),
-                                      label: const Text("Cargar gastos"),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Colors.blueAccent,
-                                        textStyle: const TextStyle(fontWeight: FontWeight.w500),
-                                      ),
+                                  const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
                                     ),
-                                  ),
+                                  )
                                 ]
                               : expenses.asMap().entries.map((entry) {
                                   final e = entry.value;
@@ -149,7 +261,7 @@ class _CategoryPageState extends State<CategoryPage> {
                                           Padding(
                                             padding: const EdgeInsets.only(top: 2),
                                             child: Text(
-                                              "Descripcion: ${e['descripcion']}",
+                                              "Descripción: ${e['descripcion']}",
                                               style: const TextStyle(color: Colors.grey, fontSize: 13),
                                             ),
                                           ),
@@ -158,23 +270,26 @@ class _CategoryPageState extends State<CategoryPage> {
                                           mainAxisAlignment: MainAxisAlignment.end,
                                           children: [
                                             TextButton.icon(
-                                              onPressed: () {
-                                                // Lógica para actualizar
-                                                //_updateExpense(e);
-                                              },
-                                              icon: const Icon(Icons.edit, size: 18, color: Color.fromARGB(255, 0, 155, 57)),
+                                              onPressed: () => _updateExpense(e),
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 18,
+                                                color: Color.fromARGB(255, 0, 155, 57),
+                                              ),
                                               label: const Text(
                                                 "Actualizar",
-                                                style: TextStyle(color: Color.fromARGB(255, 0, 155, 57)),
+                                                style: TextStyle(
+                                                    color: Color.fromARGB(255, 0, 155, 57)),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
                                             TextButton.icon(
-                                              onPressed: () {
-                                                // Lógica para eliminar
-                                                //_deleteExpense(e);
-                                              },
-                                              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                                              onPressed: () => _deleteExpense(e),
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                size: 18,
+                                                color: Colors.red,
+                                              ),
                                               label: const Text(
                                                 "Eliminar",
                                                 style: TextStyle(color: Colors.red),
@@ -186,7 +301,6 @@ class _CategoryPageState extends State<CategoryPage> {
                                     ),
                                   );
                                 }).toList(),
-
                         ),
                       ),
                     );
@@ -195,4 +309,3 @@ class _CategoryPageState extends State<CategoryPage> {
     );
   }
 }
-

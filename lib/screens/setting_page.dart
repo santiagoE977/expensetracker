@@ -24,7 +24,7 @@ class SettingPage extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.info),
             title: Text("Acerca de"),
-            subtitle: Text("Rastreador de gastos v:alfa"),
+            subtitle: Text("Rastreador de gastos v:Beta"),
           ),
         ],
       ),
