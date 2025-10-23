@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../main.dart'; // 👈 Importamos para acceder a MainPage
 import 'register_page.dart';
-import '../main.dart'; // Para poder navegar hacia MainPage
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,37 +19,32 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+
       setState(() => _isLoading = true);
 
       try {
         final response = await ApiService.login(_email, _password);
 
-       if (response != null && response['status'] == 'success') {
-          final userData = response['data']['user']; // 👈 CORREGIDO
-
-          if (userData == null || userData['id'] == null) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(
-               content: Text('Error: no se recibió el ID del usuario'),
-              ),
-            );
-           setState(() => _isLoading = false);
-           return;
-          }
-
+        if (response != null && response['status'] == 'success') {
+          // ✅ Si el login es exitoso, navegamos a la MainPage (con bottom bar)
+          if (!mounted) return;
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(
-             builder: (_) => MainPage(userId: userData['id']),
-           ),
+            MaterialPageRoute(builder: (_) => MainPage()), // Cambio clave
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response?['message'] ?? "Credenciales incorrectas"),
+            ),
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("⚠️ Error al iniciar sesión: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error al iniciar sesión: $e")));
       } finally {
-        if (mounted) setState(() => _isLoading = false);
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -57,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Iniciar Sesión")),
+      appBar: AppBar(title: const Text("Iniciar sesión")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -65,10 +60,10 @@ class _LoginPageState extends State<LoginPage> {
           child: ListView(
             children: [
               const SizedBox(height: 50),
-              const Icon(Icons.lock_outline, size: 80, color: Colors.blueAccent),
+              const Icon(Icons.lock, size: 80, color: Colors.blueAccent),
               const SizedBox(height: 20),
 
-              // Correo electrónico
+              // Campo de correo
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Correo electrónico",
@@ -76,43 +71,51 @@ class _LoginPageState extends State<LoginPage> {
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
-                validator: (v) => v == null || v.isEmpty ? "Ingrese su correo" : null,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Ingrese su correo" : null,
                 onSaved: (v) => _email = v!.trim(),
               ),
               const SizedBox(height: 15),
 
-              // Contraseña
+              // Campo de contraseña
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Contraseña",
-                  prefixIcon: Icon(Icons.lock),
+                  prefixIcon: Icon(Icons.lock_outline),
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
-                validator: (v) => v == null || v.isEmpty ? "Ingrese su contraseña" : null,
-                onSaved: (v) => _password = v!.trim(),
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Ingrese su contraseña" : null,
+                onSaved: (v) => _password = v!,
               ),
               const SizedBox(height: 25),
 
-              // Botón de login
+              // Botón de inicio de sesión
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton.icon(
+                  : ElevatedButton(
                       onPressed: _login,
-                      icon: const Icon(Icons.login),
-                      label: const Text("Iniciar Sesión"),
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 48),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.login),
+                          SizedBox(width: 8),
+                          Text("Entrar"),
+                        ],
                       ),
                     ),
               const SizedBox(height: 10),
 
-              // Ir a registro
+              // Botón de registro
               TextButton(
                 onPressed: () {
-                  Navigator.pushReplacement(
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const RegisterPage()),
+                    MaterialPageRoute(builder: (_) => RegisterPage()),
                   );
                 },
                 child: const Text("¿No tienes cuenta? Regístrate aquí"),
