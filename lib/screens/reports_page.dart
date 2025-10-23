@@ -1,21 +1,22 @@
-import 'dart:convert'; // Permite decodificar JSON
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:fl_chart/fl_chart.dart'; // Librería para gráficos
+import 'package:fl_chart/fl_chart.dart';
 
-// Pantalla principal del reporte
 class ReportsPage extends StatefulWidget {
+  final int userId; // ✅ Recibe el ID del usuario
+  const ReportsPage({Key? key, required this.userId}) : super(key: key);
+
   @override
   _ReportsPageState createState() => _ReportsPageState();
 }
 
 class _ReportsPageState extends State<ReportsPage> {
-  bool isLoading = true; // Indicador de carga
-  Map<String, double> categoryTotals = {}; // Totales por categoría
-  final String baseUrl = 'http://127.0.0.1:5000'; // Dirección del backend Flask local
-  int touchedIndex = -1; // Índice de la sección tocada en el gráfico
+  bool isLoading = true;
+  Map<String, double> categoryTotals = {};
+  final String baseUrl = 'http://127.0.0.1:5000';
+  int touchedIndex = -1;
 
-  // Lista de colores para las secciones del gráfico
   final List<Color> sectionColors = [
     Colors.blueAccent,
     Colors.redAccent,
@@ -29,25 +30,24 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   void initState() {
     super.initState();
-    fetchReportData(); // Llamamos a la función que obtiene los datos al iniciar
+    fetchReportData();
   }
 
-  // Función para obtener los gastos desde el backend
+  // 🔹 Obtener gastos filtrados por user_id
   Future<void> fetchReportData() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/expenses')); // Petición GET al backend
+      final response =
+          await http.get(Uri.parse('$baseUrl/expenses?user_id=${widget.userId}'));
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body); // Decodifica el JSON recibido
+        final List<dynamic> data = json.decode(response.body);
 
-        // Calcula el total de gastos por categoría
         final Map<String, double> totals = {};
         for (var expense in data) {
-          final categoria = expense['categoria'] ?? 'Sin categoría'; // Si no hay categoría, usa un valor por defecto
+          final categoria = expense['categoria'] ?? 'Sin categoría';
           final monto = double.tryParse(expense['monto'].toString()) ?? 0;
-          totals[categoria] = (totals[categoria] ?? 0) + monto; // Suma los montos de la misma categoría
+          totals[categoria] = (totals[categoria] ?? 0) + monto;
         }
 
-        // Actualiza el estado del widget con los nuevos datos
         setState(() {
           categoryTotals = totals;
           isLoading = false;
@@ -56,28 +56,28 @@ class _ReportsPageState extends State<ReportsPage> {
         throw Exception('Error al obtener datos del reporte');
       }
     } catch (e) {
-      print(e);
+      print('Error al cargar reportes: $e');
       setState(() => isLoading = false);
     }
   }
 
-  // Genera las secciones del gráfico circular
+  // 🔹 Secciones del gráfico circular
   List<PieChartSectionData> getPieChartSections() {
-    final totalAmount = categoryTotals.values.fold(0.0, (sum, val) => sum + val); // Suma total de gastos
+    final totalAmount = categoryTotals.values.fold(0.0, (sum, val) => sum + val);
     final List<PieChartSectionData> sections = [];
     int index = 0;
 
-    // Recorre las categorías y genera una sección para cada una
     categoryTotals.forEach((category, amount) {
-      final isTouched = index == touchedIndex; // Verifica si la sección fue tocada
-      final double fontSize = isTouched ? 16 : 12; // Aumenta el texto si está seleccionada
-      final double radius = isTouched ? 80 : 70; // Agranda el radio al tocar
-      final percent = ((amount / totalAmount) * 100).toStringAsFixed(1); // Calcula el porcentaje
+      final isTouched = index == touchedIndex;
+      final double fontSize = isTouched ? 16 : 12;
+      final double radius = isTouched ? 80 : 70;
+      final percent = totalAmount > 0
+          ? ((amount / totalAmount) * 100).toStringAsFixed(1)
+          : '0.0';
 
-      // Crea la sección del gráfico
       sections.add(PieChartSectionData(
         value: amount,
-        title: '$percent%\n$category', // Muestra porcentaje y nombre de categoría
+        title: '$percent%\n$category',
         color: sectionColors[index % sectionColors.length],
         radius: radius,
         titleStyle: TextStyle(
@@ -95,14 +95,14 @@ class _ReportsPageState extends State<ReportsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reportes')),
+      appBar: AppBar(
+        title: const Text('Reportes'),
+        backgroundColor: const Color.fromARGB(255, 0, 39, 97),
+      ),
       body: isLoading
-          // Si está cargando, muestra un spinner
           ? const Center(child: CircularProgressIndicator())
-          // Si no hay datos
           : categoryTotals.isEmpty
               ? const Center(child: Text("No hay datos para mostrar"))
-              // Si hay datos, muestra el gráfico y la lista
               : Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -127,26 +127,29 @@ class _ReportsPageState extends State<ReportsPage> {
                             padding: const EdgeInsets.all(16.0),
                             child: PieChart(
                               PieChartData(
-                                sections: getPieChartSections(), // Secciones dinámicas
-                                centerSpaceRadius: 50, // Espacio vacío en el centro
-                                sectionsSpace: 4, // Separación entre secciones
+                                sections: getPieChartSections(),
+                                centerSpaceRadius: 50,
+                                sectionsSpace: 4,
                                 pieTouchData: PieTouchData(
-                                  touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                                    // Detecta qué parte del gráfico fue tocada
+                                  touchCallback:
+                                      (FlTouchEvent event, pieTouchResponse) {
                                     setState(() {
                                       if (!event.isInterestedForInteractions ||
                                           pieTouchResponse == null ||
-                                          pieTouchResponse.touchedSection == null) {
+                                          pieTouchResponse.touchedSection ==
+                                              null) {
                                         touchedIndex = -1;
                                         return;
                                       }
                                       touchedIndex = pieTouchResponse
-                                          .touchedSection!.touchedSectionIndex;
+                                          .touchedSection!
+                                          .touchedSectionIndex;
                                     });
                                   },
                                 ),
                               ),
-                              swapAnimationDuration: Duration(milliseconds: 500), // Animación suave
+                              swapAnimationDuration:
+                                  const Duration(milliseconds: 500),
                             ),
                           ),
                         ),
@@ -154,15 +157,17 @@ class _ReportsPageState extends State<ReportsPage> {
 
                       const SizedBox(height: 20),
 
-                      // === Lista con detalles de las categorías ===
+                      // === Lista con detalles ===
                       Expanded(
                         child: ListView.builder(
                           itemCount: categoryTotals.length,
                           itemBuilder: (context, index) {
-                            String category = categoryTotals.keys.elementAt(index);
+                            String category =
+                                categoryTotals.keys.elementAt(index);
                             double amount = categoryTotals[category]!;
                             double percent = (amount /
-                                    categoryTotals.values.fold(0.0, (sum, val) => sum + val)) *
+                                    categoryTotals.values.fold(
+                                        0.0, (sum, val) => sum + val)) *
                                 100;
 
                             return ListTile(
