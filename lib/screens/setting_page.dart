@@ -14,17 +14,11 @@ class SettingPage extends StatelessWidget {
             onTap: () {},
           ),
           Divider(),
-          ListTile(
-            leading: Icon(Icons.refresh),
-            title: Text("Restablecer datos"),
-            subtitle: Text("Liquidar todos los gastos"),
-            onTap: () {},
-          ),
           Divider(),
           ListTile(
             leading: Icon(Icons.info),
             title: Text("Acerca de"),
-            subtitle: Text("Rastreador de gastos v:Beta"),
+            subtitle: Text("Rastreador de gastos v0.9.5"),
           ),
         ],
       ),

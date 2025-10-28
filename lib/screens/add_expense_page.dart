@@ -1,25 +1,29 @@
-import 'package:flutter/material.dart'; // Librería principal para construir interfaces en Flutter
-import '../models/expense.dart'; // Importa el modelo Expense (estructura de datos del gasto)
-import '../services/api_service.dart'; // Importa el servicio para comunicarse con la API (guardar gasto)
+import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
-// Página para agregar un nuevo gasto
 class AddExpensePage extends StatefulWidget {
-  const AddExpensePage({super.key});
+  final int userId;
+  final String? category; // Puede venir vacía o seleccionarse manualmente
+
+  const AddExpensePage({
+    super.key,
+    required this.userId,
+    this.category,
+  });
+
   @override
   State<AddExpensePage> createState() => _AddExpensePageState();
 }
 
-// Estado de la página (donde se maneja la lógica y los datos)
 class _AddExpensePageState extends State<AddExpensePage> {
-  final _formKey = GlobalKey<FormState>(); // Llave para validar y guardar el formulario
-  // Variables para almacenar los datos del formulario
-  String _titulo = '';
-  String _categoria = 'Comida';
-  double _monto = 0.0;
-  String _descripcion = '';
-  DateTime _fecha = DateTime.now(); // Fecha actual por defecto
+  final _formKey = GlobalKey<FormState>();
+  final _tituloController = TextEditingController();
+  final _montoController = TextEditingController();
+  final _descripcionController = TextEditingController();
+  DateTime _selectedDate = DateTime.now();
+  bool _isLoading = false;
 
-  // Lista de categorías disponibles
+  // 🔹 Categorías disponibles
   final List<String> _categorias = [
     'Comida',
     'Transporte',
@@ -28,100 +32,169 @@ class _AddExpensePageState extends State<AddExpensePage> {
     'Otros',
   ];
 
-  // Función que guarda el gasto (envía los datos al backend)
-  void _guardarGasto() async {
-    // Primero valida que todos los campos requeridos estén correctos
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save(); // Guarda los valores ingresados en las variables
+  // 🔹 Categoría seleccionada (por defecto la recibida o la primera del listado)
+  String? _categoriaSeleccionada;
 
-      // Crea un objeto Expense con los datos del formulario
-      final nuevoGasto = Expense(
-        id: 0, // El backend se encarga de generar el ID real
-        titulo: _titulo,
-        categoria: _categoria,
-        monto: _monto,
-        fecha: _fecha.toIso8601String().split('T').first, // Convierte la fecha a formato "YYYY-MM-DD"
-        descripcion: _descripcion,
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ Si viene una categoría y existe en la lista, la selecciona.
+    // Si no, usa la primera ("Comida").
+    if (widget.category != null && _categorias.contains(widget.category)) {
+      _categoriaSeleccionada = widget.category;
+    } else {
+      _categoriaSeleccionada = _categorias.first;
+    }
+  }
+
+  Future<void> _saveExpense() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_categoriaSeleccionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleccione una categoría')),
       );
+      return;
+    }
 
-      // Muestra en consola el JSON que se va a enviar (para depuración)
-      print('JSON que se enviará: ${nuevoGasto.toJson()}');
+    setState(() => _isLoading = true);
 
-      try {
-        // Llama al servicio que guarda el gasto mediante la API
-        await ApiService.addExpense(nuevoGasto);
+    final expense = {
+      "titulo": _tituloController.text.trim(),
+      "categoria": _categoriaSeleccionada,
+      "monto": double.tryParse(_montoController.text.trim()) ?? 0.0,
+      "fecha": _selectedDate.toIso8601String().substring(0, 10),
+      "descripcion": _descripcionController.text.trim(),
+      "user_id": widget.userId,
+    };
 
-        // Muestra un mensaje de éxito al usuario
+    try {
+      await createExpense(expense);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gasto agregado con éxito')),
+          const SnackBar(content: Text('Gasto guardado correctamente')),
         );
-
-        // Regresa a la pantalla anterior e indica que se agregó un gasto nuevo
         Navigator.pop(context, true);
-      } catch (e) {
-        // Si hay un error, muestra un mensaje con la causa
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar gasto: $e')),
-        );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al guardar gasto: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
+  void dispose() {
+    _tituloController.dispose();
+    _montoController.dispose();
+    _descripcionController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Estructura visual de la página
     return Scaffold(
-      appBar: AppBar(title: const Text('Agregar Gasto')), // Barra superior con título
+      appBar: AppBar(
+        title: const Text('Agregar Gasto'),
+        backgroundColor: Colors.blue,
+        elevation: 2,
+      ),
+      backgroundColor: Colors.grey[100],
       body: Padding(
-        padding: const EdgeInsets.all(16.0), // Espaciado interno general
+        padding: const EdgeInsets.all(16.0),
         child: Form(
-          key: _formKey, // Asocia el formulario con la llave para validación
-          child: ListView( // Permite desplazamiento si el contenido es largo
+          key: _formKey,
+          child: ListView(
             children: [
-              // Campo de texto: Título del gasto
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Título'),
+                controller: _tituloController,
+                decoration: const InputDecoration(
+                  labelText: 'Título',
+                  border: OutlineInputBorder(),
+                ),
                 validator: (value) =>
-                    value!.isEmpty ? 'Ingrese un título' : null, // Valida que no esté vacío
-                onSaved: (value) => _titulo = value!, // Guarda el valor ingresado
+                    value!.isEmpty ? 'Ingrese un título' : null,
               ),
+              const SizedBox(height: 12),
 
-              // Selector de categoría (menú desplegable)
+              // 🔹 Dropdown de categorías
               DropdownButtonFormField<String>(
-                value: _categoria, // Valor inicial
+                decoration: const InputDecoration(
+                  labelText: 'Categoría',
+                  border: OutlineInputBorder(),
+                ),
+                value: _categoriaSeleccionada,
                 items: _categorias
-                    .map(
-                      (cat) => DropdownMenuItem(
-                        value: cat,
-                        child: Text(cat), // Muestra el texto de cada categoría
-                      ),
-                    )
+                    .map((cat) =>
+                        DropdownMenuItem(value: cat, child: Text(cat)))
                     .toList(),
-                onChanged: (val) => setState(() => _categoria = val!), // Actualiza el valor seleccionado
-                decoration: const InputDecoration(labelText: 'Categoría'),
+                onChanged: (value) {
+                  setState(() {
+                    _categoriaSeleccionada = value;
+                  });
+                },
               ),
+              const SizedBox(height: 12),
 
-              // Campo de texto numérico para el monto
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Monto'),
-                keyboardType: TextInputType.number, // Teclado numérico
+                controller: _montoController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Monto',
+                  border: OutlineInputBorder(),
+                ),
                 validator: (value) =>
-                    value!.isEmpty ? 'Ingrese el monto' : null, // Valida que no esté vacío
-                onSaved: (value) => _monto = double.parse(value!), // Convierte el valor a double
+                    value!.isEmpty ? 'Ingrese un monto' : null,
               ),
+              const SizedBox(height: 12),
 
-              // Campo opcional para descripción
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Descripción'),
-                onSaved: (value) => _descripcion = value ?? '', // Guarda texto o vacío si no hay nada
+                controller: _descripcionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
               ),
+              const SizedBox(height: 16),
 
-              const SizedBox(height: 20), // Espacio antes del botón
+              // 🔹 Selector de fecha
+              Row(
+                children: [
+                  const Text(
+                    'Fecha:',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setState(() => _selectedDate = picked);
+                      }
+                    },
+                    child: Text(
+                      '${_selectedDate.toLocal()}'.split(' ')[0],
+                      style: const TextStyle(color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
 
-              // Botón para guardar los datos
-              ElevatedButton(
-                onPressed: _guardarGasto, // Llama a la función de guardado
-                child: const Text('Guardar'),
+              // 🔹 Botón Guardar
+              ElevatedButton.icon(
+                onPressed: _isLoading ? null : _saveExpense,
+                icon: const Icon(Icons.save),
+                label: Text(_isLoading ? 'Guardando...' : 'Guardar Gasto'),
               ),
             ],
           ),

@@ -1,60 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/home_page.dart';
-import 'screens/Category_page.dart';
+import 'screens/category_page.dart'; // ← este debe ser el archivo con userId
 import 'screens/reports_page.dart';
-import 'screens/Setting_page.dart';
-import 'screens/login_page.dart'; // 👈 Importamos la pantalla de login
+import 'screens/setting_page.dart';
+import 'screens/login_page.dart';
+import 'screens/register_page.dart';
 
-// Función principal: punto de entrada de la aplicación
 void main() {
-  runApp(const ExpenseTrackerApp()); // Ejecuta la app principal
+  runApp(const ExpenseTrackerApp());
 }
 
-// Widget principal de la aplicación
 class ExpenseTrackerApp extends StatelessWidget {
   const ExpenseTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Rastreador de gastos', // Título general de la app
-      debugShowCheckedModeBanner: false, // Oculta la etiqueta "debug" del emulador
-      theme: ThemeData(
-        primarySwatch: Colors.blue, // Paleta de color principal
-        useMaterial3: true, // Activa el diseño Material 3 (más moderno)
-      ),
-      // 👇 Empieza en la pantalla de Login
+      title: 'Rastreador de gastos',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       home: const LoginPage(),
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+        '/main': (context) => MainPage(),
+      },
     );
   }
 }
 
-// Widget que controla la navegación principal de la app (después de iniciar sesión)
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
-
   @override
-  State<MainPage> createState() => _MainPageState();
+  _MainPageState createState() => _MainPageState();
 }
 
-// Estado de la página principal
 class _MainPageState extends State<MainPage> {
-  int _currentIndex = 0; // Índice actual de la pestaña seleccionada
+  int? _userId;
+  int _currentIndex = 0;
 
-  // Lista de pantallas que se mostrarán en cada pestaña
-  final List<Widget> _pages =[
-    HomePage(),      // Pantalla principal (resumen de gastos, gráfico, etc.)
-    CategoryPage(),  // Pantalla de categorías y gastos por categoría
-    ReportsPage(),   // Pantalla de reportes (gráfico circular)
-    SettingPage(),   // Pantalla de ajustes o configuración
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _userId = prefs.getInt('userId'));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_currentIndex], // Muestra la pantalla seleccionada
+    // Mientras cargamos el userId, muestra spinner
+    if (_userId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-      // Barra de navegación inferior (BottomNavigationBar)
+    // Páginas con userId inyectado
+    final pages = [
+      HomePage(userId: _userId!),
+      CategoryPage(userId: _userId!), // ✅ userId requerido
+      ReportsPage(userId: _userId!),
+      SettingPage(),
+    ];
+
+    return Scaffold(
+      body: pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
@@ -62,22 +74,16 @@ class _MainPageState extends State<MainPage> {
         unselectedItemColor: Colors.grey,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Home",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
             icon: Icon(Icons.category),
-            label: "Categorías",
+            label: 'Categorías',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
-            label: "Informes",
+            label: 'Informes',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: "Ajustes",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Ajustes'),
         ],
       ),
     );

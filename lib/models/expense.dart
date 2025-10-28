@@ -1,43 +1,36 @@
-// Modelo de datos para representar un gasto dentro de la aplicación
 class Expense {
-  // Atributos (propiedades) del gasto
-  final int id; // Identificador único (lo asigna el backend)
-  final String titulo; // Título o nombre del gasto
-  final String categoria; // Categoría del gasto (Comida, Transporte, etc.)
-  final double monto; // Valor del gasto
-  final String fecha; // Fecha del gasto (en formato "YYYY-MM-DD")
-  final String? descripcion; // Descripción opcional del gasto
+  final int id;
+  final String titulo;
+  final String categoria;
+  final double monto;
+  final String fecha;
+  final String? descripcion;
 
-  // Constructor: se usa para crear una nueva instancia de Expense
   Expense({
     required this.id,
     required this.titulo,
     required this.categoria,
     required this.monto,
     required this.fecha,
-    this.descripcion, // Puede ser nula porque es opcional
+    this.descripcion,
   });
 
-  // Método de fábrica que crea un objeto Expense a partir de un JSON (por ejemplo, respuesta del backend)
-  factory Expense.fromJson(Map<String, dynamic> json) {
-    return Expense(
-      id: json['id'], // Extrae el campo "id" del JSON
-      titulo: json['titulo'], // Extrae el campo "titulo"
-      categoria: json['categoria'], // Extrae la categoría
-      monto: (json['monto'] as num).toDouble(), // Asegura que el valor se convierta a double
-      fecha: json['fecha'], // Extrae la fecha
-      descripcion: json['descripcion'], // Puede ser null
-    );
-  }
+  // Para enviar al backend (no incluye user_id; lo añade ApiService)
+  Map<String, dynamic> toJson() => {
+    'titulo': titulo,
+    'categoria': categoria,
+    'monto': monto,
+    'fecha': fecha,
+    'descripcion': descripcion,
+  };
 
-  // Convierte el objeto Expense a un mapa JSON (para enviarlo al backend)
-  Map<String, dynamic> toJson() {
-    return {
-      'titulo': titulo,
-      'categoria': categoria,
-      'monto': monto,
-      'fecha': fecha,
-      'descripcion': descripcion,
-    };
-  }
+  // ✅ Agrega este factory para construir desde el JSON del backend
+  factory Expense.fromJson(Map<String, dynamic> json) => Expense(
+    id: json['id'] as int,
+    titulo: json['titulo'] as String,
+    categoria: json['categoria'] as String,
+    monto: (json['monto'] as num).toDouble(),
+    fecha: json['fecha'] as String,
+    descripcion: json['descripcion'] as String?,
+  );
 }

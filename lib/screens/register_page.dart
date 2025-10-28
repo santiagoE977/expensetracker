@@ -10,129 +10,79 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _formKey = GlobalKey<FormState>();
-  String _name = '';
-  String _email = '';
-  String _password = '';
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-      setState(() => _isLoading = true);
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor completa todos los campos')),
+      );
+      return;
+    }
 
-      try {
-        final response = await ApiService.register(_name, _email, _password);
+    setState(() => _isLoading = true);
 
-        if (response['status'] == 'success') {
-          if (!mounted) return;
-
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("✅ Registro exitoso")));
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(response['message'] ?? "Error al registrarse"),
-            ),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(
+    try {
+      final response = await registerUser(name, email, password);
+      if (response['status'] == 'success') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario registrado con éxito')),
+        );
+        Navigator.pushReplacement(
           context,
-        ).showSnackBar(SnackBar(content: Text("⚠️ Error al registrarse: $e")));
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response['message'] ?? 'Error en registro')),
+        );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Registro")),
+      appBar: AppBar(title: const Text('Registro'), backgroundColor: Colors.blue),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              const SizedBox(height: 50),
-              const Icon(Icons.person_add, size: 80, color: Colors.blueAccent),
-              const SizedBox(height: 20),
-
-              // 🔹 Nombre
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: "Nombre completo",
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Ingrese su nombre" : null,
-                onSaved: (v) => _name = v!.trim(),
-              ),
-              const SizedBox(height: 15),
-
-              // 🔹 Correo
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: "Correo electrónico",
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Ingrese su correo" : null,
-                onSaved: (v) => _email = v!.trim(),
-              ),
-              const SizedBox(height: 15),
-
-              // 🔹 Contraseña
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: "Contraseña",
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Ingrese su contraseña" : null,
-                onSaved: (v) => _password = v!.trim(),
-              ),
-              const SizedBox(height: 25),
-
-              // 🔹 Botón de registro
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton.icon(
-                      onPressed: _register,
-                      icon: const Icon(Icons.app_registration),
-                      label: const Text("Registrarse"),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
-                      ),
-                    ),
-              const SizedBox(height: 10),
-
-              // 🔹 Link para iniciar sesión
-              TextButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                  );
-                },
-                child: const Text("¿Ya tienes cuenta? Inicia sesión"),
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Nombre'),
+            ),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(labelText: 'Correo electrónico'),
+            ),
+            TextField(
+              controller: _passwordController,
+              decoration: const InputDecoration(labelText: 'Contraseña'),
+              obscureText: true,
+            ),
+            const SizedBox(height: 24),
+            _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _register,
+                    child: const Text('Registrarse'),
+                  ),
+          ],
         ),
       ),
     );

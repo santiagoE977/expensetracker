@@ -1,281 +1,247 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../models/expense.dart';
 import '../services/api_service.dart';
+import 'category_page.dart';
+import 'reports_page.dart';
+import 'add_expense_page.dart';
 
 class HomePage extends StatefulWidget {
+  final int userId;
+  const HomePage({super.key, required this.userId});
+
   @override
-  _HomePageState createState() => _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Expense> _expenses = [];
+  int _currentIndex = 0;
   bool _isLoading = true;
-  final ApiService apiService = ApiService(); // ✅ Instancia de tu ApiService
-
-  // --------------------------------------------------------------------
-  // 🔹 Cargar los gastos desde la API
-  // --------------------------------------------------------------------
-  Future<void> fetchExpenses() async {
-    try {
-      final data = await apiService.getExpenses(); // Obtiene lista de Map
-      // Convertimos cada elemento del JSON a un objeto Expense
-      final List<Expense> loadedExpenses =
-          data.map((json) => Expense.fromJson(json)).toList().cast<Expense>();
-
-      setState(() {
-        _expenses = loadedExpenses;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error al cargar gastos: $e');
-      setState(() => _isLoading = false);
-    }
-  }
+  Map<String, double> _categoryTotals = {};
 
   @override
   void initState() {
     super.initState();
-    fetchExpenses(); // Se ejecuta automáticamente al abrir
+    _loadCategoryTotals();
   }
 
-  // --------------------------------------------------------------------
-  // 🔹 Total de gastos del mes
-  // --------------------------------------------------------------------
-  double get totalThisMonth {
-    return _expenses.fold(0, (sum, item) => sum + item.monto);
-  }
+  Future<void> _loadCategoryTotals() async {
+    setState(() => _isLoading = true);
+    try {
+      final expenses = await getExpenses(widget.userId);
+      final Map<String, double> totals = {};
 
-  // --------------------------------------------------------------------
-  // 🔹 Agrupar los gastos por categoría
-  // --------------------------------------------------------------------
-  Map<String, double> get categoryTotals {
-    Map<String, double> data = {};
-    for (var exp in _expenses) {
-      data[exp.categoria] = (data[exp.categoria] ?? 0) + exp.monto;
+      for (var e in expenses) {
+        final categoria = e['categoria'] ?? 'Otros';
+        final monto = (e['monto'] as num?)?.toDouble() ?? 0.0;
+        totals[categoria] = (totals[categoria] ?? 0) + monto;
+      }
+
+      setState(() {
+        _categoryTotals = totals;
+      });
+    } catch (e) {
+      debugPrint('Error al cargar totales: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
-    return data;
   }
 
-  // --------------------------------------------------------------------
-  // 🔹 Formulario para agregar nuevo gasto
-  // --------------------------------------------------------------------
-  void _showAddExpenseForm() {
-    final montoController = TextEditingController();
-    final tituloController = TextEditingController();
-    final descripcionController = TextEditingController();
-    String selectedCategory = "Comida";
-    DateTime selectedDate = DateTime.now();
+  List<BarChartGroupData> _generateBarGroups() {
+    final keys = _categoryTotals.keys.toList();
+    final values = _categoryTotals.values.toList();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 16,
-            right: 16,
-            top: 20,
+    return List.generate(keys.length, (i) {
+      return BarChartGroupData(
+        x: i,
+        barRods: [
+          BarChartRodData(
+            toY: values[i],
+            color: Colors.blue,
+            width: 22,
+            borderRadius: BorderRadius.circular(4),
           ),
-          child: StatefulBuilder(
-            builder: (context, setModalState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: tituloController,
-                    decoration: InputDecoration(labelText: "Título"),
-                  ),
-                  TextField(
-                    controller: montoController,
-                    decoration: InputDecoration(labelText: "Cantidad (\$)"),
-                    keyboardType: TextInputType.number,
-                  ),
-                  SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Text("${selectedDate.toLocal()}".split(' ')[0]),
-                      Spacer(),
-                      TextButton(
-                        onPressed: () async {
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (pickedDate != null) {
-                            setModalState(() {
-                              selectedDate = pickedDate;
-                            });
-                          }
-                        },
-                        child: Text("Seleccionar fecha"),
-                      ),
-                    ],
-                  ),
-                  DropdownButtonFormField<String>(
-                    value: selectedCategory,
-                    items: [
-                      "Comida",
-                      "Transporte",
-                      "Entretenimiento",
-                      "Facturas",
-                      "Otros"
-                    ]
-                        .map((e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setModalState(() {
-                        selectedCategory = value!;
-                      });
-                    },
-                    decoration: InputDecoration(labelText: "Categoría"),
-                  ),
-                  TextField(
-                    controller: descripcionController,
-                    decoration: InputDecoration(labelText: "Descripción"),
-                  ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (tituloController.text.isEmpty ||
-                          montoController.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Ingrese título y monto')),
-                        );
-                        return;
-                      }
+        ],
+      );
+    });
+  }
 
-                      final nuevoGasto = Expense(
-                        id: 0,
-                        titulo: tituloController.text,
-                        categoria: selectedCategory,
-                        monto: double.tryParse(montoController.text) ?? 0,
-                        fecha: selectedDate.toIso8601String().split('T').first,
-                        descripcion: descripcionController.text,
-                      );
+  double _calculateInterval() {
+    if (_categoryTotals.isEmpty) return 10;
+    final maxValue = _categoryTotals.values.reduce((a, b) => a > b ? a : b);
+    return maxValue <= 100 ? 20 : maxValue / 5;
+  }
 
-                      try {
-                        await ApiService.addExpense(nuevoGasto);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Gasto agregado con éxito')),
-                        );
-                        // 🔁 Recarga la lista y el gráfico
-                        await fetchExpenses();
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error al guardar gasto: $e')),
-                        );
-                      }
-                    },
-                    child: Text("Guardar"),
-                  ),
-                  SizedBox(height: 20),
-                ],
-              );
-            },
+  Widget _buildBarChart() {
+    if (_categoryTotals.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay gastos registrados aún',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    final categories = _categoryTotals.keys.toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: _categoryTotals.values.reduce((a, b) => a > b ? a : b) * 1.2,
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (group) => Colors.blue,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+               final category = categories[group.x.toInt()];
+                final value = rod.toY.toStringAsFixed(2);
+               return BarTooltipItem(
+                  '$category\n\$ $value',
+                  const TextStyle(color: Colors.white, fontSize: 14),
+                );
+              },
+            ),
           ),
-        );
-      },
+          titlesData: FlTitlesData(
+            show: true,
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                interval: _calculateInterval(),
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    '\$${value.toInt()}',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  );
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final category = categories[value.toInt()];
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      category,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(show: true),
+          barGroups: _generateBarGroups(),
+        ),
+      ),
     );
   }
 
-  // --------------------------------------------------------------------
-  // 🖼️ Interfaz principal
-  // --------------------------------------------------------------------
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Rastreador de gastos")),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Tarjeta del total mensual
-                  Card(
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Text(
-                        "Este mes: \$${totalThisMonth.toStringAsFixed(2)}",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _showAddExpenseForm,
-                    child: Text("+ Agregar gasto"),
-                  ),
-                  SizedBox(height: 20),
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: categoryTotals.isEmpty
-                            ? Center(child: Text("Sin gastos todavía"))
-                            : BarChart(
-                                BarChartData(
-                                  alignment: BarChartAlignment.spaceAround,
-                                  titlesData: FlTitlesData(
-                                    bottomTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        getTitlesWidget: (value, meta) {
-                                          final categories =
-                                              categoryTotals.keys.toList();
-                                          if (value.toInt() <
-                                              categories.length) {
-                                            return Text(
-                                                categories[value.toInt()]);
-                                          }
-                                          return Text("");
-                                        },
-                                      ),
-                                    ),
-                                    leftTitles: AxisTitles(
-                                      sideTitles:
-                                          SideTitles(showTitles: true),
-                                    ),
-                                  ),
-                                  borderData: FlBorderData(show: false),
-                                  barGroups: categoryTotals.entries
-                                      .toList()
-                                      .asMap()
-                                      .entries
-                                      .map(
-                                        (entry) => BarChartGroupData(
-                                          x: entry.key,
-                                          barRods: [
-                                            BarChartRodData(
-                                              toY: entry.value.value,
-                                              color: Colors.blue,
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                      .toList(),
-                                ),
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
+  Widget _buildHomeContent() {
+    return RefreshIndicator(
+      onRefresh: _loadCategoryTotals,
+      child: ListView(
+        children: [
+          const SizedBox(height: 20),
+          const Center(
+            child: Text(
+              'Resumen de Gastos por Categoría',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
               ),
             ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(height: 300, child: _buildBarChart()),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.add),
+              label: const Text(
+                'Agregar nuevo gasto',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white
+                ),
+              ),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AddExpensePage(userId: widget.userId),
+                  ),
+                );
+                _loadCategoryTotals();
+              },
+            ),
+          ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      _buildHomeContent(),
+      CategoryPage(userId: widget.userId),
+      ReportsPage(userId: widget.userId),
+      const Center(child: Text('Ajustes próximamente...')),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Rastreador de Gastos'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.blue),
+            onPressed: _loadCategoryTotals,
+          ),
+        ],
+      ),
+      backgroundColor:Colors.white,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.category), label: 'Categorías'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart), label: 'Informes'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Ajustes'),
+        ],
+      ),
     );
   }
 }
