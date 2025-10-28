@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'package:flutter/services.dart';
 
 class AddExpensePage extends StatefulWidget {
   final int userId;
@@ -145,6 +146,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   labelText: 'Monto',
                   border: OutlineInputBorder(),
                 ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly, // 👈 Solo permite números enteros
+                ],
                 validator: (value) =>
                     value!.isEmpty ? 'Ingrese un monto' : null,
               ),

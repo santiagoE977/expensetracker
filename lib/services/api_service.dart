@@ -10,7 +10,11 @@ const String baseUrl = 'http://127.0.0.1:5000';
 // 🔹 AUTENTICACIÓN
 // ---------------------------------------------------------------------------
 
-Future<Map<String, dynamic>> registerUser(String name, String email, String password) async {
+Future<Map<String, dynamic>> registerUser(
+  String name,
+  String email,
+  String password,
+) async {
   final url = Uri.parse('$baseUrl/register');
   final response = await http.post(
     url,
@@ -36,14 +40,47 @@ Future<Map<String, dynamic>> loginUser(String email, String password) async {
 // 🔹 GASTOS
 // ---------------------------------------------------------------------------
 
-Future<List<Map<String, dynamic>>> getExpenses(int userId, {String? category}) async {
-  final queryParams = {
-    'user_id': userId.toString(),
-    if (category != null) 'category': category,
-  };
+Future<List<Map<String, dynamic>>> getExpenses(
+  int userId, {
+  String? category,
+  String? search,
+  String? dateFrom,
+  String? dateTo,
+  List<String>? categories,
+}) async {
+  final queryParams = <String, dynamic>{'user_id': userId.toString()};
 
-  final url = Uri.parse('$baseUrl/expenses').replace(queryParameters: queryParams);
-  final response = await http.get(url);
+  // Agregar parámetros opcionales
+  if (search != null && search.isNotEmpty) {
+    queryParams['search'] = search;
+  }
+  if (dateFrom != null) {
+    queryParams['date_from'] = dateFrom;
+  }
+  if (dateTo != null) {
+    queryParams['date_to'] = dateTo;
+  }
+  if (category != null) {
+    queryParams['category'] = category;
+  }
+
+  // Construir URL base
+  var uri = Uri.parse(
+    '$baseUrl/expenses',
+  ).replace(queryParameters: queryParams);
+
+  // Agregar múltiples categorías manualmente
+  if (categories != null && categories.isNotEmpty) {
+    final uriString = uri.toString();
+    final categoriesQuery = categories
+        .map((cat) => 'categories[]=${Uri.encodeComponent(cat)}')
+        .join('&');
+    uri = Uri.parse(
+      '$uriString${uriString.contains('?') ? '&' : '?'}$categoriesQuery',
+    );
+  }
+
+  final response = await http.get(uri);
 
   if (response.statusCode == 200) {
     final List<dynamic> data = jsonDecode(response.body);
@@ -53,7 +90,9 @@ Future<List<Map<String, dynamic>>> getExpenses(int userId, {String? category}) a
   }
 }
 
-Future<Map<String, dynamic>> createExpense(Map<String, dynamic> expenseData) async {
+Future<Map<String, dynamic>> createExpense(
+  Map<String, dynamic> expenseData,
+) async {
   final url = Uri.parse('$baseUrl/expenses');
   final response = await http.post(
     url,
@@ -68,7 +107,10 @@ Future<Map<String, dynamic>> createExpense(Map<String, dynamic> expenseData) asy
   }
 }
 
-Future<Map<String, dynamic>> updateExpense(int expenseId, Map<String, dynamic> updatedData) async {
+Future<Map<String, dynamic>> updateExpense(
+  int expenseId,
+  Map<String, dynamic> updatedData,
+) async {
   final url = Uri.parse('$baseUrl/expenses/$expenseId');
   final response = await http.put(
     url,
@@ -118,11 +160,61 @@ Future<List<Map<String, dynamic>>> getReportByCategory(int userId) async {
 
   if (response.statusCode == 200) {
     final List<dynamic> data = jsonDecode(response.body);
-    return data.map((item) => {
-      "categoria": item["categoria"],
-      "total": (item["total"] as num).toDouble(),
-    }).toList();
+    return data
+        .map(
+          (item) => {
+            "categoria": item["categoria"],
+            "total": (item["total"] as num).toDouble(),
+          },
+        )
+        .toList();
   } else {
     throw Exception('Error al obtener el reporte por categoría');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 🔹 GESTIÓN DE USUARIO
+// ---------------------------------------------------------------------------
+
+// Actualizar perfil de usuario
+Future<Map<String, dynamic>> updateUser(
+  int userId,
+  Map<String, String> data,
+) async {
+  final url = Uri.parse('$baseUrl/users/$userId');
+  final response = await http.put(
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'nombre': data['nombre'], 'email': data['email']}),
+  );
+  return jsonDecode(response.body);
+}
+
+// Cambiar contraseña
+Future<Map<String, dynamic>> changePassword(
+  int userId,
+  Map<String, String> data,
+) async {
+  final url = Uri.parse('$baseUrl/users/$userId/password');
+  final response = await http.put(
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'current_password': data['current_password'],
+      'new_password': data['new_password'],
+    }),
+  );
+  return jsonDecode(response.body);
+}
+
+// Eliminar cuenta
+Future<Map<String, dynamic>> deleteUser(int userId) async {
+  final url = Uri.parse('$baseUrl/users/$userId');
+  final response = await http.delete(url);
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Error al eliminar cuenta');
   }
 }

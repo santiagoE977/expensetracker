@@ -4,6 +4,8 @@ import '../services/api_service.dart';
 import 'category_page.dart';
 import 'reports_page.dart';
 import 'add_expense_page.dart';
+import 'setting_page.dart';
+import 'search_expenses_page.dart';
 
 class HomePage extends StatefulWidget {
   final int userId;
@@ -36,9 +38,7 @@ class _HomePageState extends State<HomePage> {
         totals[categoria] = (totals[categoria] ?? 0) + monto;
       }
 
-      setState(() {
-        _categoryTotals = totals;
-      });
+      setState(() => _categoryTotals = totals);
     } catch (e) {
       debugPrint('Error al cargar totales: $e');
     } finally {
@@ -94,9 +94,9 @@ class _HomePageState extends State<HomePage> {
             touchTooltipData: BarTouchTooltipData(
               getTooltipColor: (group) => Colors.blue,
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
-               final category = categories[group.x.toInt()];
+                final category = categories[group.x.toInt()];
                 final value = rod.toY.toStringAsFixed(2);
-               return BarTooltipItem(
+                return BarTooltipItem(
                   '$category\n\$ $value',
                   const TextStyle(color: Colors.white, fontSize: 14),
                 );
@@ -105,10 +105,12 @@ class _HomePageState extends State<HomePage> {
           ),
           titlesData: FlTitlesData(
             show: true,
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -129,17 +131,14 @@ class _HomePageState extends State<HomePage> {
                   final category = categories[value.toInt()];
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      category,
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    child: Text(category, style: const TextStyle(fontSize: 12)),
                   );
                 },
               ),
             ),
           ),
           borderData: FlBorderData(show: false),
-          gridData: FlGridData(show: true),
+          gridData: const FlGridData(show: true),
           barGroups: _generateBarGroups(),
         ),
       ),
@@ -170,25 +169,24 @@ class _HomePageState extends State<HomePage> {
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              icon: const Icon(Icons.add),
+              icon: const Icon(Icons.add, color: Colors.white),
               label: const Text(
                 'Agregar nuevo gasto',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white),
               ),
               onPressed: () async {
                 await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        AddExpensePage(userId: widget.userId),
+                    builder: (_) => AddExpensePage(userId: widget.userId),
                   ),
                 );
                 _loadCategoryTotals();
@@ -207,7 +205,7 @@ class _HomePageState extends State<HomePage> {
       _buildHomeContent(),
       CategoryPage(userId: widget.userId),
       ReportsPage(userId: widget.userId),
-      const Center(child: Text('Ajustes próximamente...')),
+      SettingPage(),
     ];
 
     return Scaffold(
@@ -218,12 +216,23 @@ class _HomePageState extends State<HomePage> {
         elevation: 1,
         actions: [
           IconButton(
+            icon: const Icon(Icons.search, color: Colors.blue),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SearchExpensesPage(userId: widget.userId),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh, color: Colors.blue),
             onPressed: _loadCategoryTotals,
           ),
         ],
       ),
-      backgroundColor:Colors.white,
+      backgroundColor: Colors.white,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : pages[_currentIndex],
@@ -235,11 +244,14 @@ class _HomePageState extends State<HomePage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.category), label: 'Categorías'),
+            icon: Icon(Icons.category),
+            label: 'Categorías',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart), label: 'Informes'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings), label: 'Ajustes'),
+            icon: Icon(Icons.bar_chart),
+            label: 'Informes',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Ajustes'),
         ],
       ),
     );
